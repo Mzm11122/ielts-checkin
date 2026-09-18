@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="打卡">
+  <title>每日打卡</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --ink: #1a1a1a;
+      --sub: #666;
+      --muted: #aaa;
+      --line: #e5e5e5;
+      --line2: #d0d0d0;
+      --done: #1a1a1a;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: calc(120px + var(--safe-bottom));
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: var(--card);
+      padding: calc(var(--safe-top) + 16px) 20px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--line);
+    }
+    .header-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .header-title { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.5px; }
+    .header-sub { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
+    .header-reset {
+      background: none;
+      border: 1px solid var(--line2);
+      color: var(--sub);
+      font-size: 0.72rem;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .day-switch {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .day-switch::-webkit-scrollbar { display: none; }
+    .day-switch .ds-btn {
+      flex: 1;
+      min-width: 42px;
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .day-switch .ds-btn.active {
+      color: var(--ink);
+      font-weight: 700;
+      border-bottom-color: var(--ink);
+    }
+    .day-switch .ds-btn.has-done::after {
+      content: '●';
+      font-size: 5px;
+      color: var(--muted);
+      display: block;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    /* ===== MAIN ===== */
+    .main { padding: 16px 16px; max-width: 600px; margin: 0 auto; }
+
+    .day-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .day-sub {
+      font-size: 0.75rem;
+      color: var(--sub);
+      margin-bottom: 16px;
+    }
+
+    .supplement {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 0.78rem;
+      color: var(--sub);
+      line-height: 1.5;
+    }
+    .supplement strong { color: var(--ink); }
+
+    /* ===== BLOCK ===== */
+    .block { margin-bottom: 20px; }
+    .block-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--sub);
+      margin-bottom: 8px;
+      padding-left: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .block-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--ink);
+      border-radius: 2px;
+    }
+
+    /* ===== TODO ===== */
+    .todo {
+      background: var(--card);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      transition: background 0.2s;
+    }
+    .todo.done { background: #f0f0f0; }
+
+    .todo-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 13px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .todo-check {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--line2);
+      border-radius: 6px;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .todo.done .todo-check {
+      background: var(--done);
+      border-color: var(--done);
+    }
+    .todo-check::after {
+      content: '';
+      width: 6px;
+      height: 10px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg) scale(0);
+      transition: transform 0.2s;
+      margin-top: -2px;
+    }
+    .todo.done .todo-check::after { transform: rotate(45deg) scale(1); }
+
+    .todo-body { flex: 1; min-width: 0; }
+    .todo-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.4;
+      transition: all 0.2s;
+    }
+    .todo.done .todo-name { color: var(--muted); text-decoration: line-through; }
+
+    .todo-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      margin-top: 4px;
+    }
+    .todo-meta span {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    .todo-meta span:not(:last-child)::after {
+      content: '·';
+      margin-left: 8px;
+      opacity: 0.5;
+    }
+    .todo.done .todo-meta span { opacity: 0.5; }
+
+    .todo-detail {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s, padding 0.3s;
+      padding: 0 14px 0 40px;
+      font-size: 0.76rem;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+    .todo.expanded .todo-detail { max-height: 500px; padding: 8px 14px 12px 40px; }
+
+    .todo-detail-box {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .todo-expand-btn {
+      flex-shrink: 0;
+      border: 1px solid var(--line2);
+      background: var(--card);
+      color: var(--sub);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.66rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 1px;
+      transition: all 0.15s;
+    }
+    .todo-expand-btn:active { background: var(--bg); }
+    .todo.expanded .todo-expand-btn { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    /* ===== BOTTOM BAR ===== */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      padding: 12px 20px calc(8px + var(--safe-bottom));
+      z-index: 200;
+    }
+    .total-progress { margin-bottom: 8px; }
+    .total-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      margin-bottom: 6px;
+    }
+    .total-label .tl-text { color: var(--sub); }
+    .total-label .tl-num { font-weight: 700; }
+    .total-bar {
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .total-fill {
+      height: 100%;
+      background: var(--ink);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+    .total-hint {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ===== SYNC MODAL ===== */
+    .sync-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 300;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .sync-overlay.show { display: flex; }
+    .sync-modal {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 340px;
+    }
+    .sync-modal h3 { font-size: 1.05rem; margin-bottom: 16px; }
+    .sync-section { margin-bottom: 20px; }
+    .sync-section-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 8px; color: var(--sub); }
+    .sync-code-input {
+      width: 100%;
+      border: 1.5px solid var(--line2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-family: monospace;
+      text-align: center;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .sync-code-input:focus { border-color: var(--ink); outline: none; }
+    .sync-btn {
+      width: 100%;
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .sync-btn.outline {
+      background: none;
+      color: var(--ink);
+      border: 1.5px solid var(--line2);
+    }
+    .sync-status {
+      font-size: 0.75rem;
+      color: var(--sub);
+      text-align: center;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+    .sync-status.success { color: #2d8; }
+    .sync-status.error { color: #e55; }
+    .sync-code-display {
+      background: #f5f5f5;
+      border: 1.5px dashed var(--line2);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+    .sync-close {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 8px;
+      cursor: pointer;
+    }
+    .sync-connected {
+      display: inline-block;
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #e8f8e8;
+      color: #2a8;
+      margin-left: 8px;
+    }
+
+    /* ===== ANIM ===== */
+    .day-content { display: none; }
+    .day-content.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ===== VIEW TOGGLE ===== */
+    .view-toggle { display:flex; gap:0; margin-bottom:14px; border:1.5px solid var(--line2); border-radius:8px; overflow:hidden; }
+    .view-toggle button { flex:1; padding:8px; border:none; background:none; font-size:0.8rem; color:var(--sub); cursor:pointer; font-weight:600; transition:all 0.15s; }
+    .view-toggle button.active { background:var(--ink); color:#fff; }
+
+    /* ===== HANDBOOK ===== */
+    #handbook { display:none; padding:16px; max-width:600px; margin:0 auto; }
+    #handbook.active { display:block; }
+    .hb-section { margin-bottom:24px; }
+    .hb-title { font-size:0.95rem; font-weight:700; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid var(--ink); }
+    .hb-sub { font-size:0.75rem; color:var(--sub); margin-bottom:8px; }
+    .hb-card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:8px 0; }
+    .hb-table { width:100%; border-collapse:collapse; margin:6px 0; }
+    .hb-table th { text-align:left; font-size:0.68rem; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1.5px solid var(--ink); }
+    .hb-table td { padding:7px 8px; border-bottom:1px solid var(--line); font-size:0.8rem; vertical-align:top; }
+    .hb-table td.en { font-family:'SF Mono',Monaco,monospace; font-size:0.75rem; }
+    .hb-table td.cn { color:var(--sub); font-size:0.75rem; }
+    .hb-tip { background:#f5f5f5; border-left:3px solid var(--ink); border-radius:0 6px 6px 0; padding:10px 14px; margin:8px 0; }
+    .hb-tip h4 { font-size:0.82rem; margin-bottom:6px; }
+    .hb-tip li { font-size:0.76rem; margin:4px 0; }
+    .hb-practice { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:10px 0; }
+    .hb-practice p { font-size:0.8rem; margin:4px 0; }
+    .hb-input { width:100%; border:1px solid var(--line2); border-radius:6px; padding:8px 10px; font-size:0.8rem; margin:6px 0; font-family:'SF Mono',Monaco,monospace; }
+    .hb-input:focus { outline:none; border-color:var(--ink); }
+    .hb-btn { display:inline-block; background:var(--ink); color:#fff; border:none; padding:5px 12px; border-radius:4px; font-size:0.72rem; cursor:pointer; margin-top:4px; }
+    .hb-result { margin-top:6px; font-size:0.75rem; padding:6px 10px; border-radius:4px; display:none; }
+    .hb-result.ok { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; }
+    .hb-result.no { background:#fbe9e7; color:#c62828; border:1px solid #ef9a9a; }
+    .hb-day-title { font-size:0.85rem; font-weight:700; margin:16px 0 8px; color:var(--ink); }
+    .hb-tag { display:inline-block; background:var(--ink); color:#fff; font-size:0.62rem; padding:1px 6px; border-radius:3px; margin-right:4px; }
+
+    /* ===== VOCAB SECTION ===== */
+    #vocab { display:none; padding:16px 20px 60px; }
+    #vocab.active { display:block; }
+    .vc-section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:12px 0; }
+    .vc-title { font-size:0.95rem; font-weight:700; margin-bottom:8px; }
+    .vc-sub { font-size:0.72rem; color:var(--sub); margin-bottom:10px; }
+    .vc-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+    .vc-table th { text-align:left; border-bottom:2px solid var(--ink); padding:6px 4px; font-size:0.72rem; }
+    .vc-table td { border-bottom:1px solid var(--line); padding:7px 4px; vertical-align:top; }
+    .vc-table td.en { font-weight:600; width:30%; }
+    .vc-table td.cn { color:var(--sub); width:25%; }
+    .vc-table td.pos { color:var(--muted); font-size:0.68rem; width:10%; }
+    .vc-table td.ex { font-size:0.7rem; color:var(--sub); font-style:italic; }
+    .vc-test-btn { display:inline-block; background:var(--ink); color:#fff; border:none; padding:5px 14px; border-radius:4px; font-size:0.72rem; cursor:pointer; margin:8px 0; }
+    .vc-test-area { display:none; margin-top:10px; }
+    .vc-test-area.show { display:block; }
+    .vc-card { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:14px; text-align:center; margin:8px 0; }
+    .vc-card .cn-q { font-size:1rem; font-weight:600; margin-bottom:8px; }
+    .vc-card .pos-q { font-size:0.7rem; color:var(--muted); margin-bottom:8px; }
+    .vc-input { width:100%; border:1px solid var(--line2); border-radius:6px; padding:8px 10px; font-size:0.8rem; text-align:center; margin:6px 0; font-family:'SF Mono',Monaco,monospace; }
+    .vc-input:focus { outline:none; border-color:var(--ink); }
+    .vc-result { margin-top:6px; font-size:0.75rem; padding:6px 10px; border-radius:4px; display:none; }
+    .vc-result.ok { background:#e8f5e9; color:#2e7d32; }
+    .vc-result.no { background:#fbe9e7; color:#c62828; }
+    .vc-nav { display:flex; justify-content:space-between; margin-top:10px; }
+    .vc-nav button { background:var(--ink); color:#fff; border:none; padding:6px 16px; border-radius:4px; font-size:0.72rem; cursor:pointer; }
+    .vc-progress { text-align:center; font-size:0.72rem; color:var(--sub); margin:6px 0; }
+    .vc-verify { background:var(--bg); border-left:3px solid var(--ink); border-radius:0 6px 6px 0; padding:10px 14px; margin:8px 0; }
+    .vc-verify h4 { font-size:0.82rem; margin-bottom:6px; }
+    .vc-verify li { font-size:0.74rem; margin:5px 0; line-height:1.5; }
+    .vc-level { display:inline-block; border:1px solid var(--line2); border-radius:3px; padding:1px 6px; font-size:0.62rem; margin-right:4px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div>
+      <div class="header-title">每日打卡</div>
+      <div class="header-sub" id="today-date">--</div>
+      <div class="header-sub" id="phase-week" style="font-weight:600;color:var(--ink);font-size:0.72rem;margin-top:2px"></div>
+    </div>
+    <button class="header-reset" id="sync-btn">同步</button>
+    <button class="header-reset" id="reset-btn">重置</button>
+  </div>
+  <div class="day-switch" id="day-switch"></div>
+  <div class="view-toggle" id="view-toggle">
+    <button class="active" id="view-checkin">今日打卡</button>
+    <button id="view-handbook">小作文手册</button>
+    <button id="view-vocab">词汇手册</button>
+  </div>
+</div>
+
+<div class="main" id="main"></div>
+
+<div id="handbook">
+  <div class="hb-section">
+    <div class="hb-title">一、开头段：改写题目</div>
+    <p class="hb-sub">小作文第一段必须改写题目，不能照抄原题。</p>
+    <table class="hb-table">
+      <tr><th>English</th><th>中文</th></tr>
+      <tr><td class="en">The chart illustrates...</td><td class="cn">图表展示了……</td></tr>
+      <tr><td class="en">The graph shows...</td><td class="cn">折线图显示了……</td></tr>
+      <tr><td class="en">The bar chart compares...</td><td class="cn">柱状图比较了……</td></tr>
+      <tr><td class="en">The pie chart illustrates...</td><td class="cn">饼图展示了……</td></tr>
+      <tr><td class="en">The table gives information about...</td><td class="cn">表格提供了关于……的信息</td></tr>
+      <tr><td class="en">The diagram shows how...</td><td class="cn">流程图展示了……是如何……</td></tr>
+      <tr><td class="en">It is clear that...</</td><td class="cn">很明显……</td></tr>
+      <tr><td class="en">Overall, it is evident that...</td><td class="cn">总体而言，很明显……</td></tr>
+      <tr><td class="en">The most striking feature is...</td><td class="cn">最显著的特征是……</td></tr>
+      <tr><td class="en">...provides a breakdown of...</td><td class="cn">……提供了……的细目</td></tr>
+      <tr><td class="en">...over a period of... years</td><td class="cn">在……年的时间跨度内</td></tr>
+    </table>
+    <div class="hb-tip"><h4>同义替换速查</h4><ul>
+      <li>show → illustrate / demonstrate / depict</li>
+      <li>the number of → the figure for / the proportion of</li>
+      <li>different → various / several / respective</li>
+    </ul></div>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">二、趋势描述：上升 / 下降 / 波动</div>
+    <table class="hb-table"><tr><th>English</th><th>中文</th><th>程度</th></tr>
+      <tr><td class="en">increased significantly</td><td class="cn">显著增长</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">rose steadily</td><td class="cn">稳步上升</td><td><span class="hb-tag">中</span></td></tr>
+      <tr><td class="en">experienced a dramatic rise</td><td class="cn">经历了大幅上升</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">soared to</td><td class="cn">猛增至</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">climbed to</td><td class="cn">攀升至</td><td><span class="hb-tag">中</span></td></tr>
+      <tr><td class="en">declined sharply</td><td class="cn">急剧下降</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">fell considerably</td><td class="cn">大幅下降</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">dropped slightly</td><td class="cn">略微下降</td><td><span class="hb-tag">小</span></td></tr>
+      <tr><td class="en">plummeted to</td><td class="cn">暴跌至</td><td><span class="hb-tag">大</span></td></tr>
+      <tr><td class="en">remained stable at</td><td class="cn">保持稳定在……</td><td><span class="hb-tag">平</span></td></tr>
+      <tr><td class="en">fluctuated between... and...</td><td class="cn">在……和……之间波动</td><td><span class="hb-tag">波</span></td></tr>
+      <tr><td class="en">peaked at...</td><td class="cn">达到峰值……</td><td><span class="hb-tag">峰</span></td></tr>
+      <tr><td class="en">reached a low of...</td><td class="cn">降至最低点……</td><td><span class="hb-tag">谷</span></td></tr>
+      <tr><td class="en">leveled off at</td><td class="cn">趋于平稳在……</td><td><span class="hb-tag">平</span></td></tr>
+    </table>
+    <div class="hb-tip"><h4>四种万能句型</h4><ul>
+      <li><b>主语+动词+副词</b>：The number increased dramatically from 100 to 500.</li>
+      <li><b>主语+experienced+名词</b>：The number experienced a dramatic increase.</li>
+      <li><b>There+be+名词</b>：There was a significant rise in...</li>
+      <li><b>时间+saw+名词</b>：2005 saw a dramatic increase in...</li>
+    </ul></div>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">三、数据引用</div>
+    <table class="hb-table"><tr><th>English</th><th>中文</th></tr>
+      <tr><td class="en">stood at</td><td class="cn">位于/为……</td></tr>
+      <tr><td class="en">accounted for...%</td><td class="cn">占……%</td></tr>
+      <tr><td class="en">made up...%</td><td class="cn">组成……%</td></tr>
+      <tr><td class="en">represented...%</td><td class="cn">代表……%</td></tr>
+      <tr><td class="en">approximately / roughly</td><td class="cn">大约</td></tr>
+      <tr><td class="en">nearly / almost</td><td class="cn">几乎/将近</td></tr>
+      <tr><td class="en">just over / just under</td><td class="cn">刚超过/刚低于</td></tr>
+      <tr><td class="en">three times as much as</td><td class="cn">是……的三倍</td></tr>
+      <tr><td class="en">twice as many as</td><td class="cn">是……的两倍</td></tr>
+      <tr><td class="en">half the amount of</td><td class="cn">……的一半</td></tr>
+      <tr><td class="en">the majority of</td><td class="cn">大多数</td></tr>
+    </table>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">四、对比表达</div>
+    <table class="hb-table"><tr><th>English</th><th>中文</th></tr>
+      <tr><td class="en">compared to / compared with</td><td class="cn">相比于</td></tr>
+      <tr><td class="en">in contrast</td><td class="cn">相反</td></tr>
+      <tr><td class="en">whereas / while</td><td class="cn">然而（对比连词）</td></tr>
+      <tr><td class="en">on the other hand</td><td class="cn">另一方面</td></tr>
+      <tr><td class="en">significantly higher than</td><td class="cn">显著高于</td></tr>
+      <tr><td class="en">slightly lower than</td><td class="cn">略低于</td></tr>
+      <tr><td class="en">overtook</td><td class="cn">超过（动态）</td></tr>
+      <tr><td class="en">was surpassed by</td><td class="cn">被……超越</td></tr>
+      <tr><td class="en">...ranked first / second</td><td class="cn">……排名第一/第二</td></tr>
+      <tr><td class="en">the gap between... and...</td><td class="cn">……和……之间的差距</td></tr>
+    </table>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">五、结尾段</div>
+    <table class="hb-table"><tr><th>English</th><th>中文</th></tr>
+      <tr><td class="en">To summarize</td><td class="cn">总结</td></tr>
+      <tr><td class="en">In conclusion</td><td class="cn">总而言之</td></tr>
+      <tr><td class="en">Overall</td><td class="cn">总体而言</td></tr>
+      <tr><td class="en">it can be concluded that...</td><td class="cn">可以得出结论……</td></tr>
+      <tr><td class="en">the most significant change was...</td><td class="cn">最显著的变化是……</td></tr>
+    </table>
+    <div class="hb-tip"><h4>结尾段原则</h4><ul>
+      <li>只写1-2句，不要写新数据</li>
+      <li>总结最明显的趋势或对比</li>
+      <li>不要加入个人观点或推测原因</li>
+    </ul></div>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">六、高分组合句型</div>
+    <div class="hb-card"><h4>句型1：时间+趋势</h4>
+      <p style="font-size:0.78rem;font-family:monospace">From 2000 to 2020, the number of X increased steadily from 100 to 500, before leveling off at around 480 in the final five years.</p>
+      <p style="font-size:0.72rem;color:var(--muted)">从2000年到2020年，X从100稳步增长到500，最后五年趋于平稳在480左右。</p>
+    </div>
+    <div class="hb-card"><h4>句型2：对比+数据</h4>
+      <p style="font-size:0.78rem;font-family:monospace">While the figure for X rose dramatically to 300, that for Y declined slightly to 120 over the same period.</p>
+      <p style="font-size:0.72rem;color:var(--muted)">X猛增至300，而Y在同一时期略微下降至120。</p>
+    </div>
+    <div class="hb-card"><h4>句型3：占比+倍数</h4>
+      <p style="font-size:0.78rem;font-family:monospace">X accounted for the largest proportion at 45%, which was nearly three times the figure for Y (15%).</p>
+      <p style="font-size:0.72rem;color:var(--muted)">X占比最大为45%，几乎是Y（15%）的三倍。</p>
+    </div>
+    <div class="hb-card"><h4>句型4：转折点</h4>
+      <p style="font-size:0.78rem;font-family:monospace">The trend reversed in 2010, when X began to decline sharply, falling from 400 to just 150 by 2020.</p>
+      <p style="font-size:0.72rem;color:var(--muted)">趋势在2010年逆转，X开始急剧下降，从400降至2020年的仅150。</p>
+    </div>
+    <div class="hb-card"><h4>句型5：倍数表达</h4>
+      <p style="font-size:0.78rem;font-family:monospace">The number of X was twice as high as that of Y, standing at 600 and 300 respectively.</p>
+      <p style="font-size:0.72rem;color:var(--muted)">X是Y的两倍，分别为600和300。</p>
+    </div>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">七、每日翻译练习</div>
+    <p class="hb-sub">看中文写英文，写完点「查看答案」。每天5题。</p>
+
+    <div class="hb-day-title">Day 1：开头段 + 趋势</div>
+    <div class="hb-practice"><p><b>1.</b> 柱状图比较了2010年到2020年五个国家的咖啡消费量。</p>
+      <input class="hb-input" data-ans="The bar chart compares the coffee consumption in five countries between 2010 and 2020." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>2.</b> 从图表可以看出，最显著的特征是X的显著增长。</p>
+      <input class="hb-input" data-ans="As can be seen from the chart, the most striking feature is the significant increase in X." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>3.</b> X的数量从100稳步上升到500。</p>
+      <input class="hb-input" data-ans="The number of X rose steadily from 100 to 500." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>4.</b> Y经历了大幅下降，降至仅120。</p>
+      <input class="hb-input" data-ans="Y experienced a dramatic decline, falling to just 120." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>5.</b> 总体而言，很明显X是最受欢迎的选择。</p>
+      <input class="hb-input" data-ans="Overall, it is evident that X was the most popular choice." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+
+    <div class="hb-day-title">Day 2：数据引用 + 对比</div>
+    <div class="hb-practice"><p><b>1.</b> X占比最大，为45%。</p>
+      <input class="hb-input" data-ans="X accounted for the largest proportion at 45%." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>2.</b> X的数量是Y的两倍，分别为600和300。</p>
+      <input class="hb-input" data-ans="The number of X was twice as high as that of Y, standing at 600 and 300 respectively." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>3.</b> 相比之下，Z仅占10%。</p>
+      <input class="hb-input" data-ans="By comparison, Z accounted for only 10%." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>4.</b> X超过了Y，在2015年达到了300的峰值。</p>
+      <input class="hb-input" data-ans="X overtook Y, peaking at 300 in 2015." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>5.</b> 2005年到2010年间，X在100和200之间波动。</p>
+      <input class="hb-input" data-ans="Between 2005 and 2010, X fluctuated between 100 and 200." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+
+    <div class="hb-day-title">Day 3：复合句型</div>
+    <div class="hb-practice"><p><b>1.</b> 虽然X从100增长到500，但Y在同一时期略微下降到120。</p>
+      <input class="hb-input" data-ans="While the figure for X rose from 100 to 500, that for Y declined slightly to 120 over the same period." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>2.</b> 趋势在2010年逆转，X开始急剧下降，到2020年降至仅150。</p>
+      <input class="hb-input" data-ans="The trend reversed in 2010, when X began to decline sharply, falling from 400 to just 150 by 2020." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>3.</b> X几乎是Y（15%）的三倍，占比最大为45%。</p>
+      <input class="hb-input" data-ans="X accounted for the largest proportion at 45%, which was nearly three times the figure for Y (15%)." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>4.</b> 数据显示，X是最常见的，而Z是最不常见的。</p>
+      <input class="hb-input" data-ans="The data shows that X was the most common, whereas Z was the least common." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>5.</b> 值得注意的是，X和Y之间的差距逐年缩小。</p>
+      <input class="hb-input" data-ans="It is noticeable that the gap between X and Y narrowed year by year." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+
+    <div class="hb-day-title">Day 4：完整段落翻译</div>
+    <div class="hb-practice"><p><b>1.</b> 表格提供了关于四个国家在2010年可再生能源使用情况的信息。总体而言，很明显A国占比最大。</p>
+      <input class="hb-input" data-ans="The table gives information about the use of renewable energy in four countries in 2010. Overall, it is evident that Country A accounted for the largest proportion." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>2.</b> A国占了45%，几乎是B国（15%）的三倍。相比之下，C国仅占10%。</p>
+      <input class="hb-input" data-ans="Country A accounted for 45%, which was nearly three times the figure for Country B (15%). By comparison, Country C made up only 10%." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>3.</b> 从2000年到2020年，X的数量从100稳步增长到500，最后五年趋于平稳在480左右。</p>
+      <input class="hb-input" data-ans="From 2000 to 2020, the number of X increased steadily from 100 to 500, before leveling off at around 480 in the final five years." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>4.</b> Y在2005年达到峰值300，随后在2010年急剧下降到仅150。</p>
+      <input class="hb-input" data-ans="Y peaked at 300 in 2005, before declining sharply to just 150 in 2010." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>5.</b> 总结来说，数据表明X的增长被Y的下降所抵消。</p>
+      <input class="hb-input" data-ans="To summarize, the data suggests that the increase in X was offset by the decline in Y." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+
+    <div class="hb-day-title">Day 5：综合应用</div>
+    <div class="hb-practice"><p><b>1.</b> 饼图展示了2015年三种交通方式的使用比例。最显著的特征是私家车占了超过一半。</p>
+      <input class="hb-input" data-ans="The pie chart illustrates the proportion of three modes of transport used in 2015. The most striking feature is that private cars accounted for over half." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>2.</b> 公交占30%，是私家车的一半，而步行仅占15%。</p>
+      <input class="hb-input" data-ans="Buses made up 30%, which was half the figure for private cars, whereas walking accounted for only 15%." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>3.</b> 到2020年，私家车的比例增长到65%，超过了所有其他交通方式。</p>
+      <input class="hb-input" data-ans="By 2020, the proportion of private cars had risen to 65%, surpassing all other modes of transport." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>4.</b> 与此同时，步行降至仅5%，创历史最低。</p>
+      <input class="hb-input" data-ans="Meanwhile, walking dropped to just 5%, reaching a low of the entire period." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+    <div class="hb-practice"><p><b>5.</b> 总体而言，数据表明私家车的使用显著增加，而步行则急剧下降。</p>
+      <input class="hb-input" data-ans="Overall, the data suggests that the use of private cars increased significantly, while walking declined sharply." placeholder="你的翻译..." />
+      <button class="hb-btn" onclick="hbCheck(this)">查看答案</button>
+      <div class="hb-result"></div>
+    </div>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">八、5周学习计划</div>
+    <table class="hb-table"><tr><th>周次</th><th>主题</th><th>每日任务</th></tr>
+      <tr><td><b>Week 1</b></td><td>短语输入+翻译</td><td>背当天短语15min+翻译5题20min+朗读5min</td></tr>
+      <tr><td><b>Week 2</b></td><td>范文拆解+仿写</td><td>读范文标注15min+仿写开头结尾15min+翻译5题15min</td></tr>
+      <tr><td><b>Week 3</b></td><td>线图/柱图专项</td><td>限时20min写1篇+对照范文修改15min</td></tr>
+      <tr><td><b>Week 4</b></td><td>饼图/表格/流程图</td><td>限时20min写1篇+修改15min+Grammarly检查</td></tr>
+      <tr><td><b>Week 5</b></td><td>限时模考</td><td>限时20min写1篇+自评10min+改进重写15min</td></tr>
+    </table>
+  </div>
+
+  <div class="hb-section">
+    <div class="hb-title">九、学习建议</div>
+    <div class="hb-card"><h4>1. 短语先吃透再写整篇</h4><p style="font-size:0.76rem;color:var(--sub)">Week 1只做翻译练习，不写完整作文。把短语内化到看到中文就能写出英文。</p></div>
+    <div class="hb-card"><h4>2. 范文不是用来背的，是用来拆的</h4><p style="font-size:0.76rem;color:var(--sub)">每篇范文做4步：标出改写方式、趋势词汇、数据引用、对比句型。拆完仿写。</p></div>
+    <div class="hb-card"><h4>3. 时态是最大扣分点</h4><p style="font-size:0.76rem;color:var(--sub)">有年份→过去时；无年份→现在时；未来年份→将来时。写完必查时态。</p></div>
+    <div class="hb-card"><h4>4. 数据选择：挑重点不堆砌</h4><p style="font-size:0.76rem;color:var(--sub)">选最值、起点、终点、变化最大的。小数据合并说，不逐个列。</p></div>
+    <div class="hb-card"><h4>5. 每篇必须限时</h4><p style="font-size:0.76rem;color:var(--sub)">平时就限20分钟。不限时写出来的好文章，考试时写不出来。</p></div>
+    <div class="hb-card"><h4>6. 改一篇胜过写三篇</h4><p style="font-size:0.76rem;color:var(--sub)">写完→对照范文→找差距→重写。每周找老师批改1-2篇。</p></div>
+  </div>
+</div>
+
+<div id="vocab">
+  <div class="vc-section">
+    <div class="vc-title">词汇学习说明</div>
+    <p class="vc-sub">以下词汇适配雅思6.5分目标，不选太难的词，选你在写作和口语中真正用得上的词。按话题分类，每天背1个话题（15词），4周学完6个话题共90词。</p>
+    <div class="vc-verify">
+      <h4>三个掌握等级（自测标准）</h4>
+      <li><span class="vc-level">L1 认识</span>看到英文能说出中文意思 → 阅读够用，听力勉强够</li>
+      <li><span class="vc-level">L2 会用</span>能在写作中正确使用这个词 → 写作够用</li>
+      <li><span class="vc-level">L3 会说</span>能在口语中脱口而出 → 口语够用，目标达到</li>
+      <li><b>每周验收标准</b>：本周词汇 L1 认识率 ≥ 80% 才算过关，L2 会用率 ≥ 50% 算优秀</li>
+    </div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题一：教育 Education</div>
+    <p class="vc-sub">雅思高频话题，大作文常考教育类。Week 1 周一-周二背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">acquire</td><td class="pos">v.</td><td class="cn">获得</td><td class="ex">Students acquire knowledge through practice.</td></tr>
+      <tr><td class="en">approach</td><td class="pos">n.</td><td class="cn">方法/途径</td><td class="ex">A new approach to teaching.</td></tr>
+      <tr><td class="en">assign</td><td class="pos">v.</td><td class="cn">分配/布置</td><td class="ex">Teachers assign homework daily.</td></tr>
+      <tr><td class="en">benefit</td><td class="pos">n./v.</td><td class="cn">益处</td><td class="ex">Education benefits everyone.</td></tr>
+      <tr><td class="en">capacity</td><td class="pos">n.</td><td class="cn">能力/容量</td><td class="ex">Learning capacity varies.</td></tr>
+      <tr><td class="en">concentrate</td><td class="pos">v.</td><td class="cn">专注</td><td class="ex">It's hard to concentrate for hours.</td></tr>
+      <tr><td class="en">degree</td><td class="pos">n.</td><td class="cn">学位</td><td class="ex">She has a degree in science.</td></tr>
+      <tr><td class="en">effective</td><td class="pos">adj.</td><td class="cn">有效的</td><td class="ex">This method is very effective.</td></tr>
+      <tr><td class="en">encourage</td><td class="pos">v.</td><td class="cn">鼓励</td><td class="ex">Parents encourage their children to read.</td></tr>
+      <tr><td class="en">knowledge</td><td class="pos">n.</td><td class="cn">知识</td><td class="ex">Knowledge is power.</td></tr>
+      <tr><td class="en">method</td><td class="pos">n.</td><td class="cn">方法</td><td class="ex">Different teaching methods work for different students.</td></tr>
+      <tr><td class="en">objective</td><td class="pos">n.</td><td class="cn">目标</td><td class="ex">The objective of this course is to improve writing.</td></tr>
+      <tr><td class="en">participate</td><td class="pos">v.</td><td class="cn">参与</td><td class="ex">Students should participate in class discussions.</td></tr>
+      <tr><td class="en">qualify</td><td class="pos">v.</td><td class="cn">使具备资格</td><td class="ex">A degree qualifies you for better jobs.</td></tr>
+      <tr><td class="en">require</td><td class="pos">v.</td><td class="cn">要求/需要</td><td class="ex">This job requires a university degree.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('education')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-education"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题二：环境 Environment</div>
+    <p class="vc-sub">雅思大作文+阅读高频话题。Week 1 周三-周四背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">atmosphere</td><td class="pos">n.</td><td class="cn">大气层/气氛</td><td class="ex">Carbon dioxide damages the atmosphere.</td></tr>
+      <tr><td class="en">carbon</td><td class="pos">n.</td><td class="cn">碳</td><td class="ex">We need to reduce carbon emissions.</td></tr>
+      <tr><td class="en">climate</td><td class="pos">n.</td><td class="cn">气候</td><td class="ex">Climate change is a serious problem.</td></tr>
+      <tr><td class="en">conserve</td><td class="pos">v.</td><td class="cn">节约/保护</td><td class="ex">We should conserve water and energy.</td></tr>
+      <tr><td class="en">contaminate</td><td class="pos">v.</td><td class="cn">污染</td><td class="ex">Waste contaminates rivers.</td></tr>
+      <tr><td class="en">dispose</td><td class="pos">v.</td><td class="cn">处理（废弃物）</td><td class="ex">How to dispose of plastic safely?</td></tr>
+      <tr><td class="en">drought</td><td class="pos">n.</td><td class="cn">干旱</td><td class="ex">Droughts affect food production.</td></tr>
+      <tr><td class="en">emission</td><td class="pos">n.</td><td class="cn">排放</td><td class="ex">Factory emissions pollute the air.</td></tr>
+      <tr><td class="en">energy</td><td class="pos">n.</td><td class="cn">能源</td><td class="ex">Renewable energy is the future.</td></tr>
+      <tr><td class="en">flood</td><td class="pos">n.</td><td class="cn">洪水</td><td class="ex">Floods destroy homes and farms.</td></tr>
+      <tr><td class="en">habitat</td><td class="pos">n.</td><td class="cn">栖息地</td><td class="ex">Deforestation destroys animal habitats.</td></tr>
+      <tr><td class="en">pollution</td><td class="pos">n.</td><td class="cn">污染</td><td class="ex">Air pollution affects health.</td></tr>
+      <tr><td class="en">recycle</td><td class="pos">v.</td><td class="cn">回收</td><td class="ex">We should recycle plastic and paper.</td></tr>
+      <tr><td class="en">resource</td><td class="pos">n.</td><td class="cn">资源</td><td class="ex">Natural resources are limited.</td></tr>
+      <tr><td class="en">sustainable</td><td class="pos">adj.</td><td class="cn">可持续的</td><td class="ex">We need sustainable development.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('environment')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-environment"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题三：科技 Technology</div>
+    <p class="vc-sub">雅思高频话题，阅读/写作/口语都常考。Week 2 周一-周二背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">access</td><td class="pos">n./v.</td><td class="cn">接入/获取</td><td class="ex">Everyone should have access to the internet.</td></tr>
+      <tr><td class="en">advance</td><td class="pos">v./n.</td><td class="cn">进步</td><td class="ex">Technology advances rapidly.</td></tr>
+      <tr><td class="en">application</td><td class="pos">n.</td><td class="cn">应用</td><td class="ex">The application of AI in daily life.</td></tr>
+      <tr><td class="en">artificial</td><td class="pos">adj.</td><td class="cn">人工的</td><td class="ex">Artificial intelligence is changing the world.</td></tr>
+      <tr><td class="en">communication</td><td class="pos">n.</td><td class="cn">交流</td><td class="ex">Online communication is convenient.</td></tr>
+      <tr><td class="en">connect</td><td class="pos">v.</td><td class="cn">连接</td><td class="ex">The internet connects people globally.</td></tr>
+      <tr><td class="en">device</td><td class="pos">n.</td><td class="cn">设备</td><td class="ex">Mobile devices are everywhere.</td></tr>
+      <tr><td class="en">efficient</td><td class="pos">adj.</td><td class="cn">高效的</td><td class="ex">Computers make work more efficient.</td></tr>
+      <tr><td class="en">innovation</td><td class="pos">n.</td><td class="cn">创新</td><td class="ex">Innovation drives economic growth.</td></tr>
+      <tr><td class="en">interact</td><td class="pos">v.</td><td class="cn">互动</td><td class="ex">People interact through social media.</td></tr>
+      <tr><td class="en">network</td><td class="pos">n.</td><td class="cn">网络</td><td class="ex">Social networks are popular among young people.</td></tr>
+      <tr><td class="en">replace</td><td class="pos">v.</td><td class="cn">取代</td><td class="ex">Machines replace human labor in factories.</td></tr>
+      <tr><td class="en">update</td><td class="pos">v.</td><td class="cn">更新</td><td class="ex">Software needs regular updates.</td></tr>
+      <tr><td class="en">virtual</td><td class="pos">adj.</td><td class="cn">虚拟的</td><td class="ex">Virtual meetings save travel time.</td></tr>
+      <tr><td class="en">wireless</td><td class="pos">adj.</td><td class="cn">无线的</td><td class="ex">Wireless technology is convenient.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('technology')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-technology"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题四：健康 Health</div>
+    <p class="vc-sub">雅思口语/写作常考话题。Week 2 周三-周四背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">active</td><td class="pos">adj.</td><td class="cn">活跃的</td><td class="ex">An active lifestyle keeps you healthy.</td></tr>
+      <tr><td class="en">balance</td><td class="pos">n./v.</td><td class="cn">平衡</td><td class="ex">A balanced diet is important.</td></tr>
+      <tr><td class="en">cure</td><td class="pos">v./n.</td><td class="cn">治愈</td><td class="ex">There is no cure for some diseases.</td></tr>
+      <tr><td class="en">disease</td><td class="pos">n.</td><td class="cn">疾病</td><td class="ex">Heart disease is common in old age.</td></tr>
+      <tr><td class="en">diet</td><td class="pos">n.</td><td class="cn">饮食</td><td class="ex">A healthy diet prevents illness.</td></tr>
+      <tr><td class="en">exercise</td><td class="pos">n./v.</td><td class="cn">锻炼</td><td class="ex">Regular exercise improves health.</td></tr>
+      <tr><td class="en">habit</td><td class="pos">n.</td><td class="cn">习惯</td><td class="ex">Good habits lead to a better life.</td></tr>
+      <tr><td class="en">harmful</td><td class="pos">adj.</td><td class="cn">有害的</td><td class="ex">Smoking is harmful to health.</td></tr>
+      <tr><td class="en">nutrient</td><td class="pos">n.</td><td class="cn">营养素</td><td class="ex">Vegetables contain essential nutrients.</td></tr>
+      <tr><td class="en">prevent</td><td class="pos">v.</td><td class="cn">预防</td><td class="ex">Exercise prevents many diseases.</td></tr>
+      <tr><td class="en">recover</td><td class="pos">v.</td><td class="cn">恢复</td><td class="ex">It takes time to recover from illness.</td></tr>
+      <tr><td class="en">stress</td><td class="pos">n.</td><td class="cn">压力</td><td class="ex">Work stress affects mental health.</td></tr>
+      <tr><td class="en">treatment</td><td class="pos">n.</td><td class="cn">治疗</td><td class="ex">Medical treatment can be expensive.</td></tr>
+      <tr><td class="en">vitamin</td><td class="pos">n.</td><td class="cn">维生素</td><td class="ex">Fruits are rich in vitamins.</td></tr>
+      <tr><td class="en">wellness</td><td class="pos">n.</td><td class="cn">健康/保健</td><td class="ex">Wellness programs are popular in companies.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('health')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-health"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题五：社会与文化 Society & Culture</div>
+    <p class="vc-sub">雅思大作文常考话题。Week 3 周一-周二背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">belief</td><td class="pos">n.</td><td class="cn">信仰/信念</td><td class="ex">People have different beliefs.</td></tr>
+      <tr><td class="en">community</td><td class="pos">n.</td><td class="cn">社区/群体</td><td class="ex">Local communities support each other.</td></tr>
+      <tr><td class="en">cultural</td><td class="pos">adj.</td><td class="cn">文化的</td><td class="ex">Cultural differences enrich society.</td></tr>
+      <tr><td class="en">custom</td><td class="pos">n.</td><td class="cn">习俗</td><td class="ex">Each country has its own customs.</td></tr>
+      <tr><td class="en">diverse</td><td class="pos">adj.</td><td class="cn">多样的</td><td class="ex">Cities are culturally diverse.</td></tr>
+      <tr><td class="en">equality</td><td class="pos">n.</td><td class="cn">平等</td><td class="ex">Gender equality is improving.</td></tr>
+      <tr><td class="en">generation</td><td class="pos">n.</td><td class="cn">一代人</td><td class="ex">The younger generation is tech-savvy.</td></tr>
+      <tr><td class="en">individual</td><td class="pos">n./adj.</td><td class="cn">个人/个人的</td><td class="ex">Each individual is unique.</td></tr>
+      <tr><td class="en">population</td><td class="pos">n.</td><td class="cn">人口</td><td class="ex">The population is growing fast.</td></tr>
+      <tr><td class="en">preserve</td><td class="pos">v.</td><td class="cn">保护/保存</td><td class="ex">We should preserve traditional culture.</td></tr>
+      <tr><td class="en">relationship</td><td class="pos">n.</td><td class="cn">关系</td><td class="ex">Family relationships are important.</td></tr>
+      <tr><td class="en">society</td><td class="pos">n.</td><td class="cn">社会</td><td class="ex">Society changes over time.</td></tr>
+      <tr><td class="en">tradition</td><td class="pos">n.</td><td class="cn">传统</td><td class="ex">Traditions connect generations.</td></tr>
+      <tr><td class="en">urban</td><td class="pos">adj.</td><td class="cn">城市的</td><td class="ex">Urban areas are more developed.</td></tr>
+      <tr><td class="en">value</td><td class="pos">n.</td><td class="cn">价值观</td><td class="ex">Family values shape a person.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('society')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-society"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">话题六：工作与经济 Work & Economy</div>
+    <p class="vc-sub">雅思大作文常考话题。Week 3 周三-周四背完。</p>
+    <table class="vc-table">
+      <tr><th>English</th><th>词性</th><th>中文</th><th>例句</th></tr>
+      <tr><td class="en">career</td><td class="pos">n.</td><td class="cn">职业</td><td class="ex">Choosing a career is a big decision.</td></tr>
+      <tr><td class="en">compete</td><td class="pos">v.</td><td class="cn">竞争</td><td class="ex">Companies compete for customers.</td></tr>
+      <tr><td class="en">consume</td><td class="pos">v.</td><td class="cn">消费</td><td class="ex">People consume more than they need.</td></tr>
+      <tr><td class="en">demand</td><td class="pos">n./v.</td><td class="cn">需求</td><td class="ex">There is high demand for skilled workers.</td></tr>
+      <tr><td class="en">employ</td><td class="pos">v.</td><td class="cn">雇佣</td><td class="ex">Big companies employ thousands of people.</td></tr>
+      <tr><td class="en">income</td><td class="pos">n.</td><td class="cn">收入</td><td class="ex">Income levels vary by region.</td></tr>
+      <tr><td class="en">industry</td><td class="pos">n.</td><td class="cn">行业</td><td class="ex">The tech industry is growing fast.</td></tr>
+      <tr><td class="en">inflation</td><td class="pos">n.</td><td class="cn">通货膨胀</td><td class="ex">Inflation raises the cost of living.</td></tr>
+      <tr><td class="en">invest</td><td class="pos">v.</td><td class="cn">投资</td><td class="ex">People invest in education and health.</td></tr>
+      <tr><td class="en">market</td><td class="pos">n.</td><td class="cn">市场</td><td class="ex">The job market is competitive.</td></tr>
+      <tr><td class="en">opportunity</td><td class="pos">n.</td><td class="cn">机会</td><td class="ex">Cities offer more job opportunities.</td></tr>
+      <tr><td class="en">produce</td><td class="pos">v.</td><td class="cn">生产</td><td class="ex">Factories produce goods for export.</td></tr>
+      <tr><td class="en">profit</td><td class="pos">n.</td><td class="cn">利润</td><td class="ex">Companies aim to maximize profit.</td></tr>
+      <tr><td class="en">salary</td><td class="pos">n.</td><td class="cn">薪水</td><td class="ex">Salaries differ across industries.</td></tr>
+      <tr><td class="en">trade</td><td class="pos">n./v.</td><td class="cn">贸易</td><td class="ex">International trade benefits all countries.</td></tr>
+    </table>
+    <button class="vc-test-btn" onclick="vcStartTest('economy')">开始自测（看中文写英文）</button>
+    <div class="vc-test-area" id="vc-test-economy"></div>
+  </div>
+
+  <div class="vc-section">
+    <div class="vc-title">验收方法：学完怎么检查效果</div>
+    <div class="vc-verify">
+      <h4>每周日验收清单</h4>
+      <li><b>1. 自测得分</b>：用上面的「开始自测」功能，看中文写英文。正确率 ≥ 80% = 过关</li>
+      <li><b>2. 写作应用</b>：本周写的小作文/大作文里，是否用到了本周学的词？用了几个？</li>
+      <li><b>3. 口语应用</b>：口语练习时，能否说出本周学的5个以上词汇？</li>
+      <li><b>4. 阅读验证</b>：做阅读真题时，本周学的词出现了几个？你认识吗？</li>
+      <li><b>5. 听力验证</b>：听力中能听到并反应出本周学的词吗？</li>
+    </div>
+    <div class="vc-verify">
+      <h4>没达标怎么办</h4>
+      <li>正确率 60-80%：下周复习，不要急着学新话题</li>
+      <li>正确率 < 60%：重新背，每天多花10分钟，用墨墨App加大复习量</li>
+      <li>写作/口语用不出来：每个词额外造2个句子，说出来</li>
+    </div>
+    <div class="vc-verify">
+      <h4>4周学习节奏</h4>
+      <li><b>Week 1</b>：话题一（教育）+ 话题二（环境）→ 30词</li>
+      <li><b>Week 2</b>：话题三（科技）+ 话题四（健康）→ 30词</li>
+      <li><b>Week 3</b>：话题五（社会文化）+ 话题六（工作经济）→ 30词</li>
+      <li><b>Week 4</b>：全部90词总复习 + 自测，确保 L1 认识率 ≥ 80%</li>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="total-progress">
+    <div class="total-label">
+      <span class="tl-text" id="total-text">今日总进度 <span id="sync-badge"></span></span>
+      <span class="tl-num" id="total-num">0 / 0</span>
+    </div>
+    <div class="total-bar"><div class="total-fill" id="total-fill"></div></div>
+  </div>
+  <div class="total-hint" id="total-hint">加油，逐项完成 💪</div>
+</div>
+
+<div class="sync-overlay" id="sync-overlay">
+  <div class="sync-modal">
+    <h3>跨设备同步</h3>
+    <div class="sync-section" id="sync-create-section">
+      <div class="sync-section-title">创建同步码（在第一台设备上操作）</div>
+      <div class="sync-code-display" id="sync-code-show">------</div>
+      <button class="sync-btn" id="sync-create-btn">生成同步码</button>
+      <div class="sync-status" id="sync-create-status"></div>
+    </div>
+    <div class="sync-section">
+      <div class="sync-section-title">输入同步码（在其他设备上操作）</div>
+      <input type="text" class="sync-code-input" id="sync-code-input" placeholder="输入6位同步码" maxlength="6">
+      <button class="sync-btn" id="sync-connect-btn">连接同步</button>
+      <div class="sync-status" id="sync-connect-status"></div>
+    </div>
+    <div class="sync-section" id="sync-connected-section" style="display:none">
+      <div class="sync-section-title">已连接 <span class="sync-connected" id="sync-connected-code"></span></div>
+      <button class="sync-btn outline" id="sync-now-btn">立即同步</button>
+      <button class="sync-btn outline" id="sync-disconnect-btn" style="margin-top:6px">断开同步</button>
+      <div class="sync-status" id="sync-now-status"></div>
+    </div>
+    <button class="sync-close" id="sync-close-btn">关闭</button>
+  </div>
+</div>
+
+<script>
+const DAY_DATA = {
+  mon: {
+    label: '周一 · 推日', sub: '健身房训练日', gym: true,
+    supplement: '每日必做：肌酸 5g · 训练后蛋白粉 · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 雅思（约2h）', items: [
+        { name:'词汇背诵 + 复习', meta:['30min','墨墨背单词','60-80词（6.5分够用）'], detail:'工具：墨墨背单词 App\n做法：先点「复习」把昨天和前天的词过一遍，再点「学习」学新词\n本周重点：打开「词汇手册」标签，背话题一（教育）15个词\n复盘：点词汇手册里的「开始自测」，看中文写英文，正确率目标 80%+\n注意：6.5分不需要背太难的高级词，会认+会用就行'},
+        { name:'听力精听 Section 1+2', meta:['50min','每日英语听力','剑10 S1-2'], detail:'工具：每日英语听力 App + 剑10 Test 1\n做法：\n1. 第1遍正常做题（20min），不暂停\n2. 对答案，标出错题\n3. 第2遍逐句听写错题所在的句子（20min），听不出就反复5遍\n4. 跟读错句3遍（10min），模仿发音和语调\n复盘：把没听出来的词写到错题本，标注原因（生词/连读/语速快/粗心）\n目标：Section 1 对7题以上，Section 2 对5题以上'},
+        { name:'阅读 1 篇 + 错题分析', meta:['25min','剑10真题','限时18min'], detail:'工具：剑桥雅思10 纸质版\n做法：\n1. 限时18min做1篇（不是3篇，只做1篇）\n2. 对答案，标记错题\n3. 看精讲书上的解析，搞懂为什么选那个答案\n4. 摘抄这道题里的同义替换（比如原文说 different，题目里写 various）\n复盘：整理1张同义替换表，每周积累10组\n注意：阅读是你的强项，保持手感就行，不用花太多时间'},
+        { name:'机考打字练习', meta:['15min','keybr.com','目标30+ WPM'], detail:'工具：浏览器打开 keybr.com\n做法：直接开始盲打练习，不用看键盘\n目标：6.5分作文需要250字，30 WPM够用\n复盘：记录今天的 WPM，每周看趋势\n注意：打字不需要快，30-35就够了，重点是别打错'},
+      ]},
+      { title: '下午 · 健身房（约1.5h）', items: [
+        { name:'热身 + 肩袖激活', meta:['10min','弹力带/空杆'], detail:'肩袖肌群激活预防受伤\n做空杆肩推、外旋各15次×2组'},
+        { name:'坐姿哑铃肩推', meta:['4×8-12','肩部前束','渐进加重'], detail:'保持核心收紧，不要过度借力\n推到头顶正上方，下放至耳朵位置'},
+        { name:'平板哑铃卧推', meta:['3×10-12','胸大肌','控制速度'], detail:'手肘45度外展，不要完全伸直\n下放至胸部，推起时胸部发力'},
+        { name:'侧平举', meta:['4×12-15','肩部中束','不要耸肩'], detail:'小重量高次数，控制离心\n不要借力甩上去，顶峰停1秒'},
+        { name:'绳索下压', meta:['3×12-15','肱三头肌','手肘贴紧'], detail:'手肘不动，三头肌发力下压\n到最低点顶峰收缩1秒'},
+        { name:'练后蛋白粉 + 拉伸', meta:['10min','蛋白粉','拉伸'], detail:'训练后30min内喝蛋白粉+香蕉\n拉伸肩部、胸部、三头肌各30秒'},
+      ]},
+      { title: '晚上 · 雅思（约1.5h）', items: [
+        { name:'小作文短语翻译 Day 1', meta:['20min','小作文手册','5题翻译'], detail:'点顶部「小作文手册」标签 → 找到「Day 1」\n做法：看中文，在输入框里写英文翻译，写完点「查看答案」\n目标：5题中正确3题以上（相似度70%+）\n错题处理：把正确答案抄到错题本，默写3遍\n注意：6.5分小作文不需要复杂句式，用对基础短语就行'},
+        { name:'大作文结构入门（看视频）', meta:['30min','B站Simon','只看结构不讲内容'], detail:'B站搜「前雅思考官Simon 写作」\n只看 Task 2 结构讲解的 2-3 集就行\n重点记4段结构：\n  开头段（2句）：改写题目 + 表态\n  主体段1（5句）：主题句 + 解释 + 举例\n  主体段2（5句）：主题句 + 解释 + 举例\n  结尾段（2句）：重申观点\n做笔记：把结构模板抄下来\n注意：这周不用写完整大作文，先搞懂结构'},
+        { name:'口语 Part 1 × 3 话题', meta:['30min','可栗口语App','4句模板'], detail:'工具：可栗口语 App\n话题：hometown / study / work（最基础的3个）\n做法：\n1. 每个话题用4句模板准备：回答→Because→For example→Also\n2. 用App跟AI对话练习，注意说完整句子\n3. 说完看AI打分（流利度/语法）\n4. 同一个话题再说第2遍，看分数有没有提高\n复盘：标记卡顿的地方和语法错误\n注意：Part 1 不需要高级词汇，用简单句说清楚就行'},
+        { name:'睡前词汇复习', meta:['15min','过错词','睡前记忆'], detail:'打开墨墨App，过一遍今天的错词\n睡前看一遍，记忆效果最好\n不需要花太多时间，快速过就行'},
+      ]},
+    ]
+  },
+  tue: {
+    label: '周二 · 居家臂力器日', sub: '居家训练日', gym: false,
+    supplement: '每日必做：肌酸 5g · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 雅思（约2h）', items: [
+        { name:'词汇背诵 + 复习', meta:['30min','墨墨背单词','60-80词'], detail:'先复习昨天+前天的词，再学新词\n本周重点：话题二（环境）15个词\n打开词汇手册标签查看'},
+        { name:'听力精听 Section 3', meta:['50min','每日英语听力','剑10 S3'], detail:'工具：每日英语听力 + 剑10 Test 1 Section 3\nSection 3 是两个人讨论学术话题，比S1-2难\n做法：\n1. 第1遍做题（20min）\n2. 对答案，标错题\n3. 逐句听写错题句子（20min），听不出反复5遍\n4. 跟读3遍（10min）\n复盘：标注错因（选择题/匹配题/多选/语速）\n目标：Section 3 对5题以上就算达标'},
+        { name:'小作文短语翻译 Day 2', meta:['20min','小作文手册','数据引用+对比'], detail:'点「小作文手册」标签 → Day 2\n5题翻译：占比/倍数/对比表达\n写完点「查看答案」\n错题抄到错题本'},
+        { name:'小作文范文拆解（柱状图）', meta:['20min','剑桥精讲','标注结构'], detail:'工具：剑桥精讲（新东方版）里任意一篇柱状图范文\n做法：\n1. 读一遍范文\n2. 用笔标出：开头段怎么改写的？主体段用什么趋势词？数据怎么引用的？\n3. 抄下范文里你觉得好用的3个短语\n注意：不是背范文，是学它怎么用词'},
+      ]},
+      { title: '下午 · 雅思（约1h）', items: [
+        { name:'阅读 1 篇 + 错题分析', meta:['30min','剑10真题','限时18min'], detail:'限时18min做1篇→对答案→看解析\n整理同义替换表达\n阅读是你的强项，保持手感就行'},
+        { name:'口语 Part 1 × 3 话题', meta:['30min','可栗口语App','录音回听'], detail:'话题：music / sport / reading\n用4句模板：回答→Because→For example→Also\n用可栗口语App练，说完回听录音\n重点听：有没有停顿超过2秒的地方？语法有没有错？'},
+      ]},
+      { title: '傍晚 · 居家臂力器（约25min）', items: [
+        { name:'热身', meta:['5min','手腕+肘关节'], detail:'转手腕各20圈，屈伸肘关节\n弹力带轻阻力热身2组'},
+        { name:'臂力器标准弯举', meta:['4×12-15','肱二头肌','控制离心'], detail:'手肘贴紧身体两侧\n弯举到胸口，缓慢放回（3秒离心）\n不要借力甩'},
+        { name:'臂力器颈后臂屈伸', meta:['3×12','肱三头肌','手肘不动'], detail:'过头位三头肌伸展\n手肘不动，只动小臂\n感受三头肌拉伸和收缩'},
+        { name:'跪姿俯卧撑', meta:['3×力竭','胸+肩','核心收紧'], detail:'膝盖着地，身体保持一条线\n下放到胸部触地，推起到位\n做到力竭，每组记录次数'},
+        { name:'平板支撑', meta:['3×40-60s','核心','收紧腹部'], detail:'身体一条线，不要塌腰\n收紧腹部和臀部，正常呼吸\n每组记录时长'},
+      ]},
+      { title: '晚上 · 复盘（约30min）', items: [
+        { name:'今日错题整理 + 词汇复习', meta:['30min','错题本','总结'], detail:'整理今天听力/阅读错题\n标注错误类型（生词/连读/语速/粗心/时间不够）\n过错词一遍'},
+      ]},
+    ]
+  },
+  wed: {
+    label: '周三 · 拉日', sub: '健身房训练日', gym: true,
+    supplement: '每日必做：肌酸 5g · 训练后蛋白粉 · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 雅思（约2h）', items: [
+        { name:'词汇背诵 + 复习', meta:['30min','墨墨背单词','60-80词'], detail:'先复习，再学新词\n错词进生词本'},
+        { name:'听力精听 + 错题复听', meta:['50min','每日英语听力','周一错题重听'], detail:'把周一听力错题重新听写一遍\n如果这次听出来了=进步\n如果还听不出来，再听5遍+跟读3遍\n同时做剑10 Test 2 的 Section 1-2 新题\n做法和周一一样：做题→对答案→逐句听写→跟读'},
+        { name:'小作文短语翻译 Day 3', meta:['20min','小作文手册','复合句型'], detail:'点「小作文手册」标签 → Day 3\n5题翻译：While对比/转折点/倍数/排名\n写完点「查看答案」\n目标：相似度70%+'},
+        { name:'大作文段落写作（写2个主体段）', meta:['30min','纸笔写作','不用限时'], detail:'选一个简单话题：Should students wear school uniforms?\n写2个主体段，每段5句话：\n  第1句：主题句（One reason is that...）\n  第2-3句：解释为什么\n  第4句：For example...\n  第5句：小结\n写完用Grammarly检查语法\n注意：6.5分不需要复杂句式，写清楚逻辑就行'},
+      ]},
+      { title: '下午 · 健身房（约1.5h）', items: [
+        { name:'热身 + 背部激活', meta:['10min','弹力带划船'], detail:'弹力带做划船动作20次×2组\n空杆高位下拉热身\n激活背阔肌'},
+        { name:'宽握高位下拉', meta:['4×8-12','背阔肌','肘部引导'], detail:'宽握杠杆下拉到上胸\n肘部向下向后引导\n不要用手臂拉，用背发力\n顶峰收缩1秒'},
+        { name:'坐姿划船', meta:['3×10-12','中背部','肩胛骨后缩'], detail:'拉到手柄到腹部位置\n肩胛骨后缩，挤压背部\n缓慢放回（3秒离心）'},
+        { name:'辅助引体向上', meta:['3组力竭','背阔肌','记录次数'], detail:'用辅助器械或弹力带\n尽量多做，记录每次次数\n目标是逐渐减少辅助'},
+        { name:'哑铃弯举', meta:['3×12','肱二头肌','不要摇摆'], detail:'手肘贴紧身体\n弯举到肩前，缓慢放回\n不要借力甩，控制全程'},
+        { name:'练后蛋白粉 + 拉伸', meta:['10min','蛋白粉','拉伸'], detail:'训练后30min喝蛋白粉+香蕉\n拉伸背部、二头肌各30秒'},
+      ]},
+      { title: '晚上 · 雅思（约1.5h）', items: [
+        { name:'阅读 1 篇 + 错题分析', meta:['30min','剑10真题','限时18min'], detail:'限时18min做1篇→对答案→看解析\n整理同义替换\n阅读保持手感就行'},
+        { name:'口语 Part 2 话题卡', meta:['30min','可栗口语App','2分钟独白'], detail:'选1个Part 2话题卡（描述一个你认识的人/一次旅行）\n做法：\n1. 准备1分钟，写5个关键词（不写完整句子）\n2. 说2分钟，用手机录音\n3. 回听录音：时长够不够2分钟？有没有卡顿超3秒？\n4. 用可栗口语App再练一遍，看打分\n注意：Part 2 不需要复杂词汇，说清楚what/when/who/why就行'},
+      ]},
+    ]
+  },
+  thu: {
+    label: '周四 · 休息日', sub: '全天雅思，无健身训练', gym: false,
+    supplement: '每日必做：肌酸 5g · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 听力+阅读（约1.5h）', items: [
+        { name:'词汇背诵 + 复习', meta:['30min','墨墨背单词','60-80词'], detail:'先复习，再学新词\n错词进生词本'},
+        { name:'听力完整 Section 1-4', meta:['40min','剑10整套','30min做题+10min抄答案'], detail:'模拟考试：30min做完一套听力+10min抄答案\n计算得分，目标25-27/40（约6分）\n记录哪个Section最差\n错题留到下午精听'},
+        { name:'阅读 2 篇 + 错题分析', meta:['40min','剑10真题','限时36min'], detail:'限时36min做2篇→对答案→看解析\n不用精读全文，只看错题部分\n整理同义替换\n阅读是你强项，保持就行'},
+      ]},
+      { title: '下午 · 写作+口语（约1.5h）', items: [
+        { name:'小作文短语翻译 Day 4', meta:['15min','小作文手册','完整段落'], detail:'点「小作文手册」标签 → Day 4\n5题翻译：完整段落翻译\n写完点「查看答案」\n目标：相似度70%+'},
+        { name:'小作文完整写作 1 篇', meta:['30min','限时20min','柱状图'], detail:'做法：\n1. 找一道剑10的柱状图小作文题\n2. 限时20min写完（150字以上）\n3. 对照剑桥精讲里的范文\n4. 用Grammarly检查语法\n5. 看范文用了哪些你不会的短语，抄下来\n注意：6.5分小作文关键是数据选对+比较清楚，不用复杂句式'},
+        { name:'大作文开头段+结尾段练习', meta:['30min','写2个开头+2个结尾','不写主体段'], detail:'选2个话题，只练开头段和结尾段\n开头段模板：\n  第1句：改写题目（换同义词）\n  第2句：I agree/disagree that...\n结尾段模板：\n  第1句：In conclusion, I believe that...\n  第2句：总结你的理由\n写完用Grammarly检查\n注意：开头和结尾是最容易练的部分，先搞定这两个'},
+        { name:'口语 Part 1+2 综合', meta:['30min','可栗口语App','录音回听'], detail:'模拟考试流程：P1选3个话题(4min)+P2说1个话题卡(2min)\n用可栗口语App完整练习\n回听录音，标记：卡顿超3秒的地方、语法错误、词汇重复\n再说第2遍，改善这些问题'},
+      ]},
+      { title: '休息日轻活动（可选）', items: [
+        { name:'散步 / 全身拉伸', meta:['20min','放松恢复','可以听英文'], detail:'散步15min或全身拉伸\n帮助肌肉恢复，不要做高强度\n可以边走边听英文播客一举两得'},
+      ]},
+      { title: '晚上 · 复习（约30min）', items: [
+        { name:'今日错题回顾 + 词汇复习', meta:['30min','错题本','总结'], detail:'回顾今天所有错题\n统计错误类型分布\n过错词一遍'},
+      ]},
+    ]
+  },
+  fri: {
+    label: '周五 · 全身日', sub: '健身房训练日', gym: true,
+    supplement: '每日必做：肌酸 5g · 训练后蛋白粉 · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 雅思（约2h）', items: [
+        { name:'词汇背诵 + 复习', meta:['30min','墨墨背单词','60-80词'], detail:'先复习，再学新词\n错词进生词本'},
+        { name:'听力 Section 4 精听', meta:['50min','每日英语听力','剑10 S4'], detail:'Section 4 是一个人讲学术内容，最难\n做法：\n1. 做题（20min），注意填空题要拼对单词\n2. 对答案，标错题\n3. 逐句听写错题（20min）\n4. 跟读3遍（10min）\n复盘：S4的生词最多，全部记到错题本\n目标：Section 4 对4题以上就算达标'},
+        { name:'阅读 1 篇 + 机考适应', meta:['40min','雅思哥机考','限时18min'], detail:'用雅思哥机考软件做1篇阅读\n适应屏幕阅读、高亮标注功能\n限时18min\n做完看解析，整理同义替换\n阅读是你强项，机考适应一下就行'},
+      ]},
+      { title: '下午 · 健身房（约1.5h）', items: [
+        { name:'全身热身', meta:['10min','动态拉伸'], detail:'全身动态热身\n空杆深蹲、肩推、硬拉各10次×2'},
+        { name:'哑铃实力推', meta:['3×10','全身协调','爆发力'], detail:'站姿哑铃推举+微蹲接推\n全身协调发力，不要太重\n注重速度和爆发力'},
+        { name:'反向飞鸟', meta:['4×12-15','后束','控制慢放'], detail:'俯身哑铃反向飞鸟\n感受后三角肌收缩\n控制离心3秒，不要甩'},
+        { name:'轻重量硬拉', meta:['3×8','后链','腰背挺直'], detail:'轻重量练习动作模式\n腰背挺直，髋关节铰链\n感受臀部和大腿后侧发力\n不要弯腰，保护腰椎'},
+        { name:'平板支撑', meta:['3×40-60s','核心','收紧全身'], detail:'身体一条线\n收紧腹部和臀部\n每组记录时长'},
+        { name:'练后蛋白粉 + 全身拉伸', meta:['10min','蛋白粉','拉伸'], detail:'训练后30min喝蛋白粉+香蕉\n全身拉伸：肩、背、腿各30秒'},
+      ]},
+      { title: '晚上 · 雅思（约1.5h）', items: [
+        { name:'小作文短语翻译 Day 5', meta:['15min','小作文手册','综合应用'], detail:'点「小作文手册」标签 → Day 5\n5题翻译：综合应用（饼图+完整段落）\n写完点「查看答案」\n目标：相似度70%+'},
+        { name:'大作文完整限时 1 篇', meta:['45min','纸笔+Grammarly','40min写+5min检查'], detail:'话题：Some people think university education should be free. Do you agree?\n做法：\n1. 用4段结构写：开头(2句)→主体1(5句)→主体2(5句)→结尾(2句)\n2. 限时40min，写250字以上\n3. 写完用Grammarly检查语法\n4. 对照范文看差距\n注意：6.5分不需要高级词汇，关键是逻辑清楚+语法没错'},
+        { name:'口语 Part 3 入门', meta:['30min','可栗口语App','观点表达'], detail:'Part 3 是深度讨论，考官会追问Why\n话题：Do you think university education should be free?\n做法：\n1. 用可栗口语App练\n2. 每个回答用：观点→解释→举例\n3. 录音回听，检查有没有说不下去的地方\n注意：Part 3 说3-4句话就行，不用说太多'},
+        { name:'睡前词汇复习', meta:['15min','过错词','睡前'], detail:'快速过当天错词\n加深记忆'},
+      ]},
+    ]
+  },
+  sat: {
+    label: '周六 · 雅思强化日', sub: '整块学习日，无健身训练', gym: false,
+    supplement: '每日必做：肌酸 5g · 蛋白质 88-99g',
+    blocks: [
+      { title: '上午 · 听力+阅读（约2h）', items: [
+        { name:'词汇本周复习', meta:['30min','本周所有词汇','快速过一遍'], detail:'把本周学过的词汇全部快速过一遍\n标记还不熟的，下周重点复习\n打开词汇手册标签做自测'},
+        { name:'听力真题完整 1 套', meta:['60min','剑10整套','30min+10min+20min精听'], detail:'做法：\n1. 30min做题 + 10min抄答案\n2. 计算得分，对比周四的成绩\n3. 精听错题20min\n目标：听力总得分 25-27/40（约6分）\n如果低于23分，下周听力加量'},
+        { name:'阅读真题完整 1 套 3 篇', meta:['70min','剑10真题','60min做题+10min分析'], detail:'限时60min做3篇→对答案→算分\n目标：阅读总得分 23-26/40（约6-6.5分）\n阅读是你强项，如果低于20分要重点排查\n标注薄弱题型（T/F/NG/Heading/匹配/填空）'},
+      ]},
+      { title: '下午 · 写作+口语（约2h）', items: [
+        { name:'小作文短语本周复习', meta:['15min','小作文手册','重做本周错题'], detail:'打开「小作文手册」标签\n重做本周Day 1-5中做错的题\n目标：之前错的这次全对'},
+        { name:'写作完整 1 套（大+小）', meta:['70min','纸笔写','小20min+大40min'], detail:'做法：\n1. 先做小作文（柱状图或线图），限时20min\n2. 再做大作文，限时40min\n3. 写完用Grammarly检查\n4. 对照范文分析差距\n5. 如果能找到人批改最好，不能就自检\n注意：6.5分关键是：数据写对、逻辑清楚、语法没错'},
+        { name:'口语完整模考 P1+P2+P3', meta:['20min','可栗口语App','14min模拟'], detail:'用可栗口语App模拟完整考试流程\nP1(4-5min) + P2(3min) + P3(4-5min)\nAI打分：流利度/词汇/语法/发音\n记录4项分数，看哪项最低\n下周重点练最低的那项'},
+        { name:'写作范文精读 + 口语素材积累', meta:['30min','剑桥精讲','摘抄好词好句'], detail:'精读1篇大作文范文\n摘抄3个好用的句型（不是难词，是你会用的）\n口语：准备1张素材卡（人物类），写5个关键词\n下周可以套用'},
+      ]},
+      { title: '主动恢复（可选）', items: [
+        { name:'散步 / 瑜伽', meta:['30min','主动恢复','可以听英文'], detail:'散步或瑜伽30min\n促进血液循环帮助恢复\n可以边走边听英文播客'},
+      ]},
+    ]
+  },
+  sun: {
+    label: '周日 · 复盘日', sub: '周复盘 + 下周计划调整', gym: false,
+    supplement: '每日必做：肌酸 5g · 蛋白质 88-99g · 早起空腹称重',
+    blocks: [
+      { title: '上午 · 雅思周复盘（约1.5h）', items: [
+        { name:'听力周复盘', meta:['25min','错题重做','统计错因'], detail:'本周听力错题重做一遍\n统计错误类型：拼写错误几个？连读没听出几个？生词几个？选择题蒙错几个？\n精听3段最弱的Section\n记录本周听力平均得分'},
+        { name:'阅读周复盘', meta:['20min','错题回顾','整理同义替换'], detail:'回顾本周阅读错题\n整理本周积累的同义替换表\n标注薄弱题型\n记录本周阅读平均得分\n阅读是你强项，维持就行'},
+        { name:'写作周复盘', meta:['25min','作文回顾','统计正确率'], detail:'回顾本周所有作文+短语翻译\n统计：小作文翻译正确率（Day 1-5）\n统计高频语法错误类型（时态？单复数？冠词？）\n背诵5个好用的句型'},
+        { name:'口语周复盘', meta:['20min','回听录音','统计问题'], detail:'回听本周录音\n统计：卡顿超3秒的地方有几个？\n语法错误几个？\n词汇是否太单一（总用good/bad/important）？\n自评4项分数趋势'},
+        { name:'词汇周验收', meta:['15min','词汇手册','自测80%+'], detail:'打开「词汇手册」标签 → 点本周话题「开始自测」\n看中文写英文，正确率 ≥ 80% = 过关\n60-80%：下周复习，不学新话题\n< 60%：重新背，墨墨App加大复习量\n统计：本周写作/口语里用出了几个新学的词？'},
+      ]},
+      { title: '下午 · 健身周复盘（约30min）', items: [
+        { name:'训练周复盘', meta:['20min','完成率','重量记录'], detail:'统计本周训练完成率（几次去了健身房？居家做了几次？）\n记录各动作重量变化\n检查饮食：蛋白质吃够88-99g了吗？\n拍照记录体态变化'},
+        { name:'称重 + 体态记录', meta:['10min','空腹称重','拍照'], detail:'早起空腹称重，记录体重\n拍照正面+侧面\n对比上周，记录变化'},
+      ]},
+      { title: '下午 · 下周计划调整（20min）', items: [
+        { name:'根据完成度调整下周', meta:['20min','调整计划','把情况发给我'], detail:'把本周数据发给我：\n- 听力平均得分/40\n- 阅读平均得分/40\n- 小作文翻译正确率%\n- 口语AI打分（流利度/语法）\n- 词汇自测正确率%\n- 健身完成率%\n- 体重变化\n我根据这些数据帮你调整下周计划'},
+      ]},
+    ]
+  },
+};
+
+const WEEKDAYS = ['sun','mon','tue','wed','thu','fri','sat'];
+const DAY_LABELS = {mon:'一',tue:'二',wed:'三',thu:'四',fri:'五',sat:'六',sun:'日'};
+const DAY_FULL = {mon:'周一',tue:'周二',wed:'周三',thu:'周四',fri:'周五',sat:'周六',sun:'周日'};
+
+let currentDay = WEEKDAYS[new Date().getDay()];
+let state = {};
+let syncCode = localStorage.getItem('checkin-sync-code') || '';
+let syncPollTimer = null;
+
+const SYNC_API = 'https://jsonblob.com/api/jsonBlob';
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('checkin-state-v3');
+    if (saved) state = JSON.parse(saved);
+  } catch(e) { state = {}; }
+}
+
+function saveState() {
+  localStorage.setItem('checkin-state-v3', JSON.stringify(state));
+  cloudPush();
+}
+
+// ===== CLOUD SYNC =====
+async function cloudPush() {
+  if (!syncCode) return;
+  try {
+    await fetch(`${SYNC_API}/${syncCode}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ state: state, ts: Date.now() })
+    });
+  } catch(e) { console.log('Cloud push failed:', e); }
+}
+
+async function cloudPull() {
+  if (!syncCode) return null;
+  try {
+    const res = await fetch(`${SYNC_API}/${syncCode}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch(e) { console.log('Cloud pull failed:', e); return null; }
+}
+
+async function cloudCreate() {
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  try {
+    const res = await fetch(SYNC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ state: state, ts: Date.now() })
+    });
+    if (!res.ok) throw new Error('Create failed');
+    const location = res.headers.get('Location') || '';
+    const id = location.split('/').pop() || code;
+    syncCode = id;
+    localStorage.setItem('checkin-sync-code', syncCode);
+    return syncCode;
+  } catch(e) {
+    // Fallback: use short code without cloud
+    syncCode = code;
+    localStorage.setItem('checkin-sync-code', syncCode);
+    return syncCode;
+  }
+}
+
+async function cloudConnect(code) {
+  syncCode = code;
+  const data = await cloudPull();
+  if (data && data.state) {
+    // Merge: cloud state takes priority for existing keys, keep local for new
+    state = Object.assign({}, state, data.state);
+    saveState();
+    localStorage.setItem('checkin-sync-code', syncCode);
+    return true;
+  }
+  return false;
+}
+
+function startAutoSync() {
+  if (syncPollTimer) clearInterval(syncPollTimer);
+  syncPollTimer = setInterval(async () => {
+    const data = await cloudPull();
+    if (data && data.state) {
+      const merged = Object.assign({}, state, data.state);
+      const stateStr = JSON.stringify(state);
+      const mergedStr = JSON.stringify(merged);
+      if (stateStr !== mergedStr) {
+        state = merged;
+        saveState();
+        switchDay(currentDay);
+      }
+    }
+  }, 30000);
+}
+
+function updateSyncUI() {
+  const badge = document.getElementById('sync-badge');
+  if (syncCode) {
+    const shortCode = syncCode.substring(0, 6).toUpperCase();
+    badge.innerHTML = '<span class="sync-connected">已同步</span>';
+    document.getElementById('sync-create-section').style.display = 'none';
+    document.getElementById('sync-connected-section').style.display = 'block';
+    document.getElementById('sync-connected-code').textContent = shortCode;
+  } else {
+    badge.innerHTML = '';
+    document.getElementById('sync-create-section').style.display = 'block';
+    document.getElementById('sync-connected-section').style.display = 'none';
+  }
+}
+
+function getKey(day, bi, ii) { return `${day}-${bi}-${ii}`; }
+
+function countItems(day) {
+  const data = DAY_DATA[day];
+  let total = 0, done = 0;
+  data.blocks.forEach((block, bi) => {
+    block.items.forEach((item, ii) => {
+      total++;
+      if (state[getKey(day, bi, ii)]) done++;
+    });
+  });
+  return { total, done };
+}
+
+function renderDay(day) {
+  const data = DAY_DATA[day];
+  let html = '';
+  html += `<div class="day-label">${data.label}</div>`;
+  html += `<div class="day-sub">${data.sub}</div>`;
+  if (data.supplement) {
+    html += `<div class="supplement"><strong>${data.supplement}</strong></div>`;
+  }
+  data.blocks.forEach((block, bi) => {
+    html += `<div class="block">`;
+    html += `<div class="block-title">${block.title}</div>`;
+    block.items.forEach((item, ii) => {
+      const key = getKey(day, bi, ii);
+      const isDone = state[key];
+      html += `<div class="todo ${isDone?'done':''}" data-key="${key}">`;
+      html += `<div class="todo-row">`;
+      html += `<div class="todo-check"></div>`;
+      html += `<div class="todo-body">`;
+      html += `<div class="todo-name">${item.name}</div>`;
+      if (item.meta && item.meta.length) {
+        html += `<div class="todo-meta">`;
+        item.meta.forEach((m, idx) => {
+          if (idx > 0) html += `<span>${m}</span>`;
+          else html += `<span>${m}</span>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+      if (item.detail) {
+        html += `<button class="todo-expand-btn" data-action="expand">怎么做</button>`;
+      }
+      html += `</div>`;
+      if (item.detail) {
+        html += `<div class="todo-detail"><div class="todo-detail-box">${item.detail.replace(/\n/g,'<br>')}</div></div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
+  return html;
+}
+
+function updateTotal(day) {
+  const { total, done } = countItems(day);
+  const pct = total > 0 ? Math.round(done/total*100) : 0;
+  document.getElementById('total-num').textContent = `${done} / ${total}`;
+  document.getElementById('total-fill').style.width = pct + '%';
+
+  let hint = '';
+  if (total === 0) hint = '今天没有任务';
+  else if (pct === 0) hint = '加油，逐项完成 💪';
+  else if (pct < 50) hint = '已经开始了，继续 💪';
+  else if (pct < 100) hint = '已完成一半，继续加油 💪';
+  else hint = '✅ 今日全部完成！';
+  document.getElementById('total-hint').textContent = hint;
+}
+
+function updateDaySwitch() {
+  document.querySelectorAll('.ds-btn').forEach(btn => {
+    const day = btn.dataset.day;
+    const { done } = countItems(day);
+    btn.classList.toggle('has-done', done > 0);
+    btn.classList.toggle('active', day === currentDay);
+  });
+}
+
+function switchDay(day) {
+  currentDay = day;
+  document.getElementById('main').innerHTML = renderDay(day);
+  updateTotal(day);
+  updateDaySwitch();
+  bindTodoEvents();
+}
+
+function bindTodoEvents() {
+  document.querySelectorAll('.todo').forEach(todo => {
+    const row = todo.querySelector('.todo-row');
+    row.addEventListener('click', (e) => {
+      const key = todo.dataset.key;
+
+      // Click on expand button toggles detail
+      const expandBtn = e.target.closest('.todo-expand-btn');
+      if (expandBtn) {
+        e.stopPropagation();
+        todo.classList.toggle('expanded');
+        return;
+      }
+
+      // Otherwise toggle check
+      if (state[key]) {
+        delete state[key];
+        todo.classList.remove('done');
+      } else {
+        state[key] = true;
+        todo.classList.add('done');
+      }
+      saveState();
+      updateTotal(currentDay);
+      updateDaySwitch();
+    });
+  });
+}
+
+// ===== VIEW TOGGLE =====
+function showView(view) {
+  document.getElementById('view-checkin').classList.remove('active');
+  document.getElementById('view-handbook').classList.remove('active');
+  document.getElementById('view-vocab').classList.remove('active');
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('handbook').classList.remove('active');
+  document.getElementById('vocab').classList.remove('active');
+  document.querySelector('.day-switch').style.display = 'none';
+  document.querySelector('.bottom-bar').style.display = 'none';
+
+  if (view === 'checkin') {
+    document.getElementById('view-checkin').classList.add('active');
+    document.getElementById('main').style.display = 'block';
+    document.querySelector('.day-switch').style.display = 'flex';
+    document.querySelector('.bottom-bar').style.display = 'block';
+  } else if (view === 'handbook') {
+    document.getElementById('view-handbook').classList.add('active');
+    document.getElementById('handbook').classList.add('active');
+  } else if (view === 'vocab') {
+    document.getElementById('view-vocab').classList.add('active');
+    document.getElementById('vocab').classList.add('active');
+  }
+}
+document.getElementById('view-checkin').addEventListener('click', () => showView('checkin'));
+document.getElementById('view-handbook').addEventListener('click', () => showView('handbook'));
+document.getElementById('view-vocab').addEventListener('click', () => showView('vocab'));
+
+// ===== VOCAB SELF-TEST =====
+const VOCAB_DATA = {
+  education: [
+    {en:'acquire',cn:'获得',pos:'v.'},{en:'approach',cn:'方法/途径',pos:'n.'},
+    {en:'assign',cn:'分配/布置',pos:'v.'},{en:'benefit',cn:'益处',pos:'n./v.'},
+    {en:'capacity',cn:'能力/容量',pos:'n.'},{en:'concentrate',cn:'专注',pos:'v.'},
+    {en:'degree',cn:'学位',pos:'n.'},{en:'effective',cn:'有效的',pos:'adj.'},
+    {en:'encourage',cn:'鼓励',pos:'v.'},{en:'knowledge',cn:'知识',pos:'n.'},
+    {en:'method',cn:'方法',pos:'n.'},{en:'objective',cn:'目标',pos:'n.'},
+    {en:'participate',cn:'参与',pos:'v.'},{en:'qualify',cn:'使具备资格',pos:'v.'},
+    {en:'require',cn:'要求/需要',pos:'v.'}
+  ],
+  environment: [
+    {en:'atmosphere',cn:'大气层/气氛',pos:'n.'},{en:'carbon',cn:'碳',pos:'n.'},
+    {en:'climate',cn:'气候',pos:'n.'},{en:'conserve',cn:'节约/保护',pos:'v.'},
+    {en:'contaminate',cn:'污染',pos:'v.'},{en:'dispose',cn:'处理（废弃物）',pos:'v.'},
+    {en:'drought',cn:'干旱',pos:'n.'},{en:'emission',cn:'排放',pos:'n.'},
+    {en:'energy',cn:'能源',pos:'n.'},{en:'flood',cn:'洪水',pos:'n.'},
+    {en:'habitat',cn:'栖息地',pos:'n.'},{en:'pollution',cn:'污染',pos:'n.'},
+    {en:'recycle',cn:'回收',pos:'v.'},{en:'resource',cn:'资源',pos:'n.'},
+    {en:'sustainable',cn:'可持续的',pos:'adj.'}
+  ],
+  technology: [
+    {en:'access',cn:'接入/获取',pos:'n./v.'},{en:'advance',cn:'进步',pos:'v./n.'},
+    {en:'application',cn:'应用',pos:'n.'},{en:'artificial',cn:'人工的',pos:'adj.'},
+    {en:'communication',cn:'交流',pos:'n.'},{en:'connect',cn:'连接',pos:'v.'},
+    {en:'device',cn:'设备',pos:'n.'},{en:'efficient',cn:'高效的',pos:'adj.'},
+    {en:'innovation',cn:'创新',pos:'n.'},{en:'interact',cn:'互动',pos:'v.'},
+    {en:'network',cn:'网络',pos:'n.'},{en:'replace',cn:'取代',pos:'v.'},
+    {en:'update',cn:'更新',pos:'v.'},{en:'virtual',cn:'虚拟的',pos:'adj.'},
+    {en:'wireless',cn:'无线的',pos:'adj.'}
+  ],
+  health: [
+    {en:'active',cn:'活跃的',pos:'adj.'},{en:'balance',cn:'平衡',pos:'n./v.'},
+    {en:'cure',cn:'治愈',pos:'v./n.'},{en:'disease',cn:'疾病',pos:'n.'},
+    {en:'diet',cn:'饮食',pos:'n.'},{en:'exercise',cn:'锻炼',pos:'n./v.'},
+    {en:'habit',cn:'习惯',pos:'n.'},{en:'harmful',cn:'有害的',pos:'adj.'},
+    {en:'nutrient',cn:'营养素',pos:'n.'},{en:'prevent',cn:'预防',pos:'v.'},
+    {en:'recover',cn:'恢复',pos:'v.'},{en:'stress',cn:'压力',pos:'n.'},
+    {en:'treatment',cn:'治疗',pos:'n.'},{en:'vitamin',cn:'维生素',pos:'n.'},
+    {en:'wellness',cn:'健康/保健',pos:'n.'}
+  ],
+  society: [
+    {en:'belief',cn:'信仰/信念',pos:'n.'},{en:'community',cn:'社区/群体',pos:'n.'},
+    {en:'cultural',cn:'文化的',pos:'adj.'},{en:'custom',cn:'习俗',pos:'n.'},
+    {en:'diverse',cn:'多样的',pos:'adj.'},{en:'equality',cn:'平等',pos:'n.'},
+    {en:'generation',cn:'一代人',pos:'n.'},{en:'individual',cn:'个人/个人的',pos:'n./adj.'},
+    {en:'population',cn:'人口',pos:'n.'},{en:'preserve',cn:'保护/保存',pos:'v.'},
+    {en:'relationship',cn:'关系',pos:'n.'},{en:'society',cn:'社会',pos:'n.'},
+    {en:'tradition',cn:'传统',pos:'n.'},{en:'urban',cn:'城市的',pos:'adj.'},
+    {en:'value',cn:'价值观',pos:'n.'}
+  ],
+  economy: [
+    {en:'career',cn:'职业',pos:'n.'},{en:'compete',cn:'竞争',pos:'v.'},
+    {en:'consume',cn:'消费',pos:'v.'},{en:'demand',cn:'需求',pos:'n./v.'},
+    {en:'employ',cn:'雇佣',pos:'v.'},{en:'income',cn:'收入',pos:'n.'},
+    {en:'industry',cn:'行业',pos:'n.'},{en:'inflation',cn:'通货膨胀',pos:'n.'},
+    {en:'invest',cn:'投资',pos:'v.'},{en:'market',cn:'市场',pos:'n.'},
+    {en:'opportunity',cn:'机会',pos:'n.'},{en:'produce',cn:'生产',pos:'v.'},
+    {en:'profit',cn:'利润',pos:'n.'},{en:'salary',cn:'薪水',pos:'n.'},
+    {en:'trade',cn:'贸易',pos:'n./v.'}
+  ]
+};
+
+let vcTestState = { topic: null, index: 0, correct: 0, total: 0, order: [] };
+
+function vcStartTest(topic) {
+  const words = VOCAB_DATA[topic] || [];
+  if (!words.length) return;
+  // Shuffle
+  const order = words.map((_, i) => i).sort(() => Math.random() - 0.5);
+  vcTestState = { topic, index: 0, correct: 0, total: words.length, order };
+  vcRenderCard();
+}
+
+function vcRenderCard() {
+  const { topic, index, correct, total, order } = vcTestState;
+  const area = document.getElementById('vc-test-' + topic);
+  if (!area) return;
+  area.classList.add('show');
+
+  if (index >= total) {
+    const pct = Math.round(correct / total * 100);
+    const pass = pct >= 80;
+    area.innerHTML = `
+      <div class="vc-card">
+        <div class="cn-q">测试完成！</div>
+        <div style="font-size:1.2rem;font-weight:700;margin:10px 0">${correct} / ${total}</div>
+        <div style="font-size:0.8rem;color:var(--sub)">正确率 ${pct}%</div>
+        <div style="margin-top:8px;font-size:0.78rem;color:${pass?'#2e7d32':'#c62828'};font-weight:600">
+          ${pass ? '✅ 过关！L1 认识率达标' : '❌ 未达标，继续复习（目标80%）'}
+        </div>
+      </div>
+      <button class="vc-test-btn" onclick="vcStartTest('${topic}')">重新测试</button>
+    `;
+    return;
+  }
+
+  const word = VOCAB_DATA[topic][order[index]];
+  area.innerHTML = `
+    <div class="vc-progress">第 ${index + 1} / ${total} 题　已对 ${correct}</div>
+    <div class="vc-card">
+      <div class="cn-q">${word.cn}</div>
+      <div class="pos-q">词性：${word.pos}</div>
+      <input class="vc-input" id="vc-input-${topic}" placeholder="输入英文..." autocomplete="off" autocapitalize="none" />
+      <button class="vc-test-btn" onclick="vcCheck('${topic}')">提交</button>
+      <div class="vc-result" id="vc-result-${topic}"></div>
+    </div>
+    <div class="vc-nav">
+      <button onclick="vcSkip('${topic}')">跳过</button>
+      <button onclick="vcNext('${topic}')">下一题</button>
+    </div>
+  `;
+  setTimeout(() => {
+    const input = document.getElementById('vc-input-' + topic);
+    if (input) input.focus();
+    if (input) input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') vcCheck(topic);
+    });
+  }, 50);
+}
+
+function vcCheck(topic) {
+  const { index, order } = vcTestState;
+  const word = VOCAB_DATA[topic][order[index]];
+  const input = document.getElementById('vc-input-' + topic);
+  const result = document.getElementById('vc-result-' + topic);
+  if (!input || !result) return;
+  const user = input.value.toLowerCase().trim();
+  const answer = word.en.toLowerCase().trim();
+
+  if (user === answer) {
+    vcTestState.correct++;
+    result.className = 'vc-result ok';
+    result.style.display = 'block';
+    result.textContent = '✅ 正确！';
+  } else {
+    result.className = 'vc-result no';
+    result.style.display = 'block';
+    result.textContent = '❌ 答案是：' + word.en;
+  }
+  // Disable input after submit
+  input.disabled = true;
+}
+
+function vcNext(topic) {
+  vcTestState.index++;
+  vcRenderCard();
+}
+
+function vcSkip(topic) {
+  vcTestState.index++;
+  vcRenderCard();
+}
+
+// ===== HANDBOOK TRANSLATION CHECK =====
+function hbCheck(btn) {
+  var input = btn.previousElementSibling;
+  var answer = input.getAttribute('data-ans').toLowerCase().trim();
+  var user = input.value.toLowerCase().trim();
+  var result = btn.nextElementSibling;
+  if (user.length < 3) {
+    result.className = 'hb-result no';
+    result.style.display = 'block';
+    result.textContent = '请先写出你的翻译再查看答案';
+    return;
+  }
+  var similarity = 0;
+  var longer = answer.length > user.length ? answer : user;
+  var shorter = answer.length > user.length ? user : answer;
+  if (longer.length === 0) { similarity = 100; } else {
+    var match = 0;
+    for (var i = 0; i < shorter.length; i++) {
+      if (longer.indexOf(shorter[i]) !== -1) match++;
+    }
+    similarity = Math.round((match / longer.length) * 100);
+  }
+  if (similarity >= 70) {
+    result.className = 'hb-result ok';
+    result.style.display = 'block';
+    result.textContent = '正确！相似度 ' + similarity + '%';
+  } else {
+    result.className = 'hb-result no';
+    result.style.display = 'block';
+    result.textContent = '再检查一下，相似度 ' + similarity + '%。参考答案：' + input.getAttribute('data-ans');
+  }
+}
+
+function init() {
+  loadState();
+
+  // Date
+  const now = new Date();
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const weeks = ['日','一','二','三','四','五','六'];
+  document.getElementById('today-date').textContent = `${now.getFullYear()}年 ${months[now.getMonth()]}${now.getDate()}日 · 星期${weeks[now.getDay()]}`;
+
+  // Day switch buttons
+  const ds = document.getElementById('day-switch');
+  WEEKDAYS.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn';
+    btn.dataset.day = d;
+    btn.textContent = DAY_FULL[d];
+    btn.addEventListener('click', () => switchDay(d));
+    ds.appendChild(btn);
+  });
+
+  // Reset
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    if (!confirm(`确认重置 ${DAY_FULL[currentDay]} 的所有打卡记录吗？`)) return;
+    const data = DAY_DATA[currentDay];
+    data.blocks.forEach((block, bi) => {
+      block.items.forEach((item, ii) => {
+        delete state[getKey(currentDay, bi, ii)];
+      });
+    });
+    saveState();
+    switchDay(currentDay);
+  });
+
+  // Sync
+  document.getElementById('sync-btn').addEventListener('click', () => {
+    updateSyncUI();
+    document.getElementById('sync-overlay').classList.add('show');
+  });
+  document.getElementById('sync-close-btn').addEventListener('click', () => {
+    document.getElementById('sync-overlay').classList.remove('show');
+  });
+  document.getElementById('sync-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'sync-overlay') {
+      document.getElementById('sync-overlay').classList.remove('show');
+    }
+  });
+
+  document.getElementById('sync-create-btn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('sync-create-status');
+    statusEl.textContent = '正在创建...';
+    statusEl.className = 'sync-status';
+    const code = await cloudCreate();
+    document.getElementById('sync-code-show').textContent = code.substring(0, 6).toUpperCase();
+    statusEl.textContent = '创建成功！在其他设备输入此码';
+    statusEl.className = 'sync-status success';
+    updateSyncUI();
+    startAutoSync();
+  });
+
+  document.getElementById('sync-connect-btn').addEventListener('click', async () => {
+    const input = document.getElementById('sync-code-input').value.trim().toUpperCase();
+    const statusEl = document.getElementById('sync-connect-status');
+    if (input.length < 6) {
+      statusEl.textContent = '请输入6位同步码';
+      statusEl.className = 'sync-status error';
+      return;
+    }
+    statusEl.textContent = '正在连接...';
+    statusEl.className = 'sync-status';
+    const ok = await cloudConnect(input);
+    if (ok) {
+      statusEl.textContent = '连接成功！进度已同步';
+      statusEl.className = 'sync-status success';
+      switchDay(currentDay);
+      startAutoSync();
+      setTimeout(() => updateSyncUI(), 500);
+    } else {
+      statusEl.textContent = '连接失败，请检查同步码';
+      statusEl.className = 'sync-status error';
+    }
+  });
+
+  document.getElementById('sync-now-btn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('sync-now-status');
+    statusEl.textContent = '正在同步...';
+    statusEl.className = 'sync-status';
+    const data = await cloudPull();
+    if (data && data.state) {
+      state = Object.assign({}, state, data.state);
+      saveState();
+      switchDay(currentDay);
+      statusEl.textContent = '同步成功！';
+      statusEl.className = 'sync-status success';
+    } else {
+      // Push local state if pull fails (no data on cloud yet)
+      await cloudPush();
+      statusEl.textContent = '已上传本地进度';
+      statusEl.className = 'sync-status success';
+    }
+  });
+
+  document.getElementById('sync-disconnect-btn').addEventListener('click', () => {
+    syncCode = '';
+    localStorage.removeItem('checkin-sync-code');
+    if (syncPollTimer) { clearInterval(syncPollTimer); syncPollTimer = null; }
+    updateSyncUI();
+    document.getElementById('sync-now-status').textContent = '已断开同步';
+  });
+
+  switchDay(currentDay);
+
+  // Auto sync on load
+  if (syncCode) {
+    cloudPull().then(data => {
+      if (data && data.state) {
+        state = Object.assign({}, state, data.state);
+        saveState();
+        switchDay(currentDay);
+      }
+      startAutoSync();
+    });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
